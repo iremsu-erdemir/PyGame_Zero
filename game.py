@@ -1,4 +1,4 @@
-import sys
+from pygame import Rect
 
 WIDTH = 800
 HEIGHT = 600
@@ -32,6 +32,9 @@ class Player:
 
         self.speed = 4
         self.velocity_y = 0
+        self.gravity = 0.5
+        self.jump_power = -12
+        self.ground_y = 430
         self.is_on_ground = True
 
         self.idle_frames = [
@@ -51,15 +54,26 @@ class Player:
     def update(self):
         self.is_running = False
 
-        if keyboard.left:
+        if keyboard.left or keyboard.a:
             self.x -= self.speed
             self.is_running = True
 
-        if keyboard.right:
+        if keyboard.right or keyboard.d:
             self.x += self.speed
             self.is_running = True
 
-        # Oyuncunun ekrandan çıkmasını engeller
+        if (keyboard.space or keyboard.up) and self.is_on_ground:
+            self.velocity_y = self.jump_power
+            self.is_on_ground = False
+
+        self.velocity_y += self.gravity
+        self.y += self.velocity_y
+
+        if self.y >= self.ground_y:
+            self.y = self.ground_y
+            self.velocity_y = 0
+            self.is_on_ground = True
+
         self.x = max(0, min(self.x, WIDTH - 80))
 
         self.animate()
@@ -85,7 +99,7 @@ class Player:
 
     def reset(self):
         self.x = 100
-        self.y = 430
+        self.y = self.ground_y
         self.velocity_y = 0
         self.is_on_ground = True
         self.current_frame = 0
@@ -184,7 +198,7 @@ def on_mouse_down(pos):
         sound_enabled = not sound_enabled
 
     elif exit_button.collidepoint(pos):
-        sys.exit()
+        exit()
 
 
 def on_key_down(key):
