@@ -24,17 +24,26 @@ start_button = Rect((250, 180), (300, 60))
 sound_button = Rect((250, 270), (300, 60))
 exit_button = Rect((250, 360), (300, 60))
 
+ground = Rect((0, 510), (800, 90))
+platform_1 = Rect((150, 400), (180, 25))
+platform_2 = Rect((430, 320), (180, 25))
+platform_3 = Rect((250, 240), (160, 25))
+
+platforms = [ground, platform_1, platform_2, platform_3]
+
 
 class Player:
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
+        self.width = 60
+        self.height = 90
+
         self.speed = 4
         self.velocity_y = 0
         self.gravity = 0.5
         self.jump_power = -12
-        self.ground_y = 430
         self.is_on_ground = True
 
         self.idle_frames = [
@@ -51,6 +60,9 @@ class Player:
         self.animation_timer = 0
         self.is_running = False
 
+    def get_rect(self):
+        return Rect((self.x, self.y), (self.width, self.height))
+
     def update(self):
         self.is_running = False
 
@@ -66,15 +78,25 @@ class Player:
             self.velocity_y = self.jump_power
             self.is_on_ground = False
 
+        old_y = self.y
+
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
-        if self.y >= self.ground_y:
-            self.y = self.ground_y
-            self.velocity_y = 0
-            self.is_on_ground = True
+        self.is_on_ground = False
+        player_rect = self.get_rect()
 
-        self.x = max(0, min(self.x, WIDTH - 80))
+        for platform in platforms:
+            if player_rect.colliderect(platform):
+                old_bottom = old_y + self.height
+
+                if self.velocity_y >= 0 and old_bottom <= platform.top:
+                    self.y = platform.top - self.height
+                    self.velocity_y = 0
+                    self.is_on_ground = True
+                    player_rect = self.get_rect()
+
+        self.x = max(0, min(self.x, WIDTH - self.width))
 
         self.animate()
 
@@ -99,7 +121,7 @@ class Player:
 
     def reset(self):
         self.x = 100
-        self.y = self.ground_y
+        self.y = ground.top - self.height
         self.velocity_y = 0
         self.is_on_ground = True
         self.current_frame = 0
@@ -107,7 +129,12 @@ class Player:
         self.is_running = False
 
 
-player = Player(100, 430)
+player = Player(100, ground.top - 90)
+
+
+def draw_platforms():
+    for platform in platforms:
+        screen.draw.filled_rect(platform, (80, 120, 60))
 
 
 def draw():
@@ -159,6 +186,7 @@ def draw():
             color="black"
         )
 
+        draw_platforms()
         player.draw()
 
     elif game_state == WIN:
@@ -193,6 +221,7 @@ def on_mouse_down(pos):
 
     if start_button.collidepoint(pos):
         game_state = PLAYING
+        player.reset()
 
     elif sound_button.collidepoint(pos):
         sound_enabled = not sound_enabled
