@@ -1,3 +1,5 @@
+import sys
+
 WIDTH = 800
 HEIGHT = 600
 TITLE = "Forest Runner"
@@ -14,11 +16,20 @@ PLAY_COLOR = (100, 200, 255)
 WIN_COLOR = (50, 180, 50)
 LOSE_COLOR = (180, 50, 50)
 
+# Buton renkleri
+BUTTON_COLOR = (70, 70, 180)
+TEXT_COLOR = "white"
+
 # Oyunun başlangıç durumu
 game_state = MENU
 
 # Ses açık mı kapalı mı bilgisi
 sound_enabled = True
+
+# Menü butonları
+start_button = Rect((250, 180), (300, 60))
+sound_button = Rect((250, 270), (300, 60))
+exit_button = Rect((250, 360), (300, 60))
 
 
 def draw():
@@ -27,17 +38,41 @@ def draw():
 
     if game_state == MENU:
         screen.fill(MENU_COLOR)
+
         screen.draw.text(
-            "MENU",
-            center=(WIDTH // 2, HEIGHT // 2 - 50),
+            "FOREST RUNNER",
+            center=(WIDTH // 2, 80),
             fontsize=60,
             color="white"
         )
+
+        # Start Game butonu
+        screen.draw.filled_rect(start_button, BUTTON_COLOR)
         screen.draw.text(
-            "Press ENTER to Start",
-            center=(WIDTH // 2, HEIGHT // 2 + 20),
+            "Start Game",
+            center=start_button.center,
             fontsize=35,
-            color="yellow"
+            color=TEXT_COLOR
+        )
+
+        # Sound butonu
+        screen.draw.filled_rect(sound_button, BUTTON_COLOR)
+        sound_text = "Sound: ON" if sound_enabled else "Sound: OFF"
+
+        screen.draw.text(
+            sound_text,
+            center=sound_button.center,
+            fontsize=35,
+            color=TEXT_COLOR
+        )
+
+        # Exit butonu
+        screen.draw.filled_rect(exit_button, BUTTON_COLOR)
+        screen.draw.text(
+            "Exit",
+            center=exit_button.center,
+            fontsize=35,
+            color=TEXT_COLOR
         )
 
     elif game_state == PLAYING:
@@ -73,16 +108,29 @@ def update():
     pass
 
 
+def on_mouse_down(pos):
+    """Menü butonlarını kontrol eder."""
+    global game_state, sound_enabled
+
+    if game_state != MENU:
+        return
+
+    if start_button.collidepoint(pos):
+        game_state = PLAYING
+
+    elif sound_button.collidepoint(pos):
+        sound_enabled = not sound_enabled
+
+    elif exit_button.collidepoint(pos):
+        sys.exit()
+
+
 def on_key_down(key):
     """Klavye tuşlarına basıldığında çalışır."""
     global game_state
 
-    # Menüden oyuna geç
-    if game_state == MENU and key == keys.RETURN:
-        game_state = PLAYING
-
     # Test amacıyla kazanma ve kaybetme ekranları
-    elif game_state == PLAYING:
+    if game_state == PLAYING:
         if key == keys.W:
             game_state = WIN
         elif key == keys.L:
