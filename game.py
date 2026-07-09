@@ -4,36 +4,99 @@ WIDTH = 800
 HEIGHT = 600
 TITLE = "Forest Runner"
 
-# Oyun durumları
 MENU = "menu"
 PLAYING = "playing"
 WIN = "win"
 LOSE = "lose"
 
-# Arka plan renkleri
 MENU_COLOR = (30, 30, 80)
 PLAY_COLOR = (100, 200, 255)
 WIN_COLOR = (50, 180, 50)
 LOSE_COLOR = (180, 50, 50)
 
-# Buton renkleri
 BUTTON_COLOR = (70, 70, 180)
 TEXT_COLOR = "white"
 
-# Oyunun başlangıç durumu
 game_state = MENU
-
-# Ses açık mı kapalı mı bilgisi
 sound_enabled = True
 
-# Menü butonları
 start_button = Rect((250, 180), (300, 60))
 sound_button = Rect((250, 270), (300, 60))
 exit_button = Rect((250, 360), (300, 60))
 
 
+class Player:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+        self.speed = 4
+        self.velocity_y = 0
+        self.is_on_ground = True
+
+        self.idle_frames = [
+            "player_idle_0",
+            "player_idle_1"
+        ]
+
+        self.run_frames = [
+            "player_run_0",
+            "player_run_1"
+        ]
+
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.is_running = False
+
+    def update(self):
+        self.is_running = False
+
+        if keyboard.left:
+            self.x -= self.speed
+            self.is_running = True
+
+        if keyboard.right:
+            self.x += self.speed
+            self.is_running = True
+
+        # Oyuncunun ekrandan çıkmasını engeller
+        self.x = max(0, min(self.x, WIDTH - 80))
+
+        self.animate()
+
+    def animate(self):
+        self.animation_timer += 1
+
+        if self.animation_timer >= 10:
+            self.animation_timer = 0
+
+            if self.is_running:
+                self.current_frame = (self.current_frame + 1) % len(self.run_frames)
+            else:
+                self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
+
+    def draw(self):
+        if self.is_running:
+            image_name = self.run_frames[self.current_frame]
+        else:
+            image_name = self.idle_frames[self.current_frame]
+
+        screen.blit(image_name, (self.x, self.y))
+
+    def reset(self):
+        self.x = 100
+        self.y = 430
+        self.velocity_y = 0
+        self.is_on_ground = True
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.is_running = False
+
+
+player = Player(100, 430)
+
+
 def draw():
-    """Oyun ekranını mevcut duruma göre çizer."""
     screen.clear()
 
     if game_state == MENU:
@@ -46,7 +109,6 @@ def draw():
             color="white"
         )
 
-        # Start Game butonu
         screen.draw.filled_rect(start_button, BUTTON_COLOR)
         screen.draw.text(
             "Start Game",
@@ -55,7 +117,6 @@ def draw():
             color=TEXT_COLOR
         )
 
-        # Sound butonu
         screen.draw.filled_rect(sound_button, BUTTON_COLOR)
         sound_text = "Sound: ON" if sound_enabled else "Sound: OFF"
 
@@ -66,7 +127,6 @@ def draw():
             color=TEXT_COLOR
         )
 
-        # Exit butonu
         screen.draw.filled_rect(exit_button, BUTTON_COLOR)
         screen.draw.text(
             "Exit",
@@ -77,12 +137,15 @@ def draw():
 
     elif game_state == PLAYING:
         screen.fill(PLAY_COLOR)
+
         screen.draw.text(
             "GAME SCREEN",
-            center=(WIDTH // 2, HEIGHT // 2),
+            center=(WIDTH // 2, 80),
             fontsize=50,
             color="black"
         )
+
+        player.draw()
 
     elif game_state == WIN:
         screen.fill(WIN_COLOR)
@@ -104,12 +167,11 @@ def draw():
 
 
 def update():
-    """Her karede çalışan oyun güncelleme fonksiyonu."""
-    pass
+    if game_state == PLAYING:
+        player.update()
 
 
 def on_mouse_down(pos):
-    """Menü butonlarını kontrol eder."""
     global game_state, sound_enabled
 
     if game_state != MENU:
@@ -126,16 +188,14 @@ def on_mouse_down(pos):
 
 
 def on_key_down(key):
-    """Klavye tuşlarına basıldığında çalışır."""
     global game_state
 
-    # Test amacıyla kazanma ve kaybetme ekranları
     if game_state == PLAYING:
         if key == keys.W:
             game_state = WIN
         elif key == keys.L:
             game_state = LOSE
 
-    # Kazanma veya kaybetme ekranından menüye dön
     elif game_state in (WIN, LOSE) and key == keys.ESCAPE:
         game_state = MENU
+        player.reset()
