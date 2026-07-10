@@ -1,4 +1,4 @@
-from pygame import Rect, transform
+from pygame import Rect
 
 WIDTH = 800
 HEIGHT = 600
@@ -103,7 +103,6 @@ class Player:
         self.jump_power = -12
         self.is_on_ground = True
 
-        # Fat Berry character pack.
         self.idle_frames = [
             "idle3",
             "idle4",
@@ -173,13 +172,11 @@ class Player:
                 sounds.jump.stop()
                 sounds.jump.play()
 
-        # Player hitbox bottom edge before movement.
         old_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
 
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
-        # Player hitbox bottom edge after movement.
         new_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
 
         player_hitbox = self.get_hitbox()
@@ -207,15 +204,16 @@ class Player:
                 self.is_on_ground = True
                 break
 
-        self.x = max(0, min(self.x, WIDTH - self.width))
-
         self.animate()
 
     def animate(self):
-        # Decide which animation should play.
-        new_animation = "run" if self.is_running else "idle"
+        if not self.is_on_ground:
+            new_animation = "jump"
+        elif self.is_running:
+            new_animation = "run"
+        else:
+            new_animation = "idle"
 
-        # Restart from the first frame when the animation changes.
         if new_animation != self.current_animation:
             self.current_animation = new_animation
             self.current_frame = 0
@@ -228,6 +226,8 @@ class Player:
 
             if self.current_animation == "run":
                 frame_count = len(self.run_frames)
+            elif self.current_animation == "jump":
+                frame_count = len(self.jump_frames)
             else:
                 frame_count = len(self.idle_frames)
 
@@ -236,29 +236,63 @@ class Player:
             ) % frame_count
 
     def draw(self):
-        if not self.is_on_ground:
-            if self.velocity_y < -4:
-                image_name = self.jump_frames[0]
-            elif self.velocity_y < 4:
-                image_name = self.jump_frames[1]
-            else:
-                image_name = self.jump_frames[2]
-        elif self.current_animation == "run":
+        if self.current_animation == "run":
             image_name = self.run_frames[self.current_frame]
+        elif self.current_animation == "jump":
+            image_name = self.jump_frames[self.current_frame]
         else:
             image_name = self.idle_frames[self.current_frame]
 
-        player_image = transform.scale(
-            images.load(image_name),
-            (self.width, self.height),
-        )
-        screen.blit(player_image, (self.x, self.y))
+        screen.blit(getattr(images, image_name), (self.x, self.y))
 
     def reset(self):
         self.x = 100
         self.y = ground.top - self.height
         self.velocity_y = 0
         self.is_on_ground = True
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.current_animation = "idle"
+        self.is_running = False
+
+    def reset(self):
+        self.x = 100
+        self.y = ground.top - self.height
+        self.width = 159
+        self.height = 64
+        self.speed = 4
+        self.velocity_y = 0
+        self.gravity = 0.5
+        self.jump_power = -12
+        self.is_on_ground = True
+
+        # Fat Berry character pack.
+        self.idle_frames = [
+            "idle3",
+            "idle4",
+            "idle5",
+            "idle6",
+            "idle7",
+            "idle8"
+        ]
+
+        self.run_frames = [
+            "run1",
+            "run2",
+            "run3",
+            "run4",
+            "run5",
+            "run6",
+            "run7",
+            "run8"
+        ]
+
+        self.jump_frames = [
+            "jump1",
+            "jump2",
+            "jump3"
+        ]
+
         self.current_frame = 0
         self.animation_timer = 0
         self.current_animation = "idle"
@@ -280,6 +314,7 @@ class Enemy:
         self.right_limit = right_limit
         self.speed = speed
         self.direction = 1
+        self.pause_timer = 0
 
         self.idle_frames = [
             "enemy_idle_0",
@@ -295,6 +330,7 @@ class Enemy:
         self.current_frame = 0
         self.animation_timer = 0
         self.animation_speed = 10
+        self.current_animation = "walk"
 
     def get_rect(self):
         return Rect(
@@ -315,36 +351,53 @@ class Enemy:
         )
 
     def update(self):
+        if self.pause_timer > 0:
+            self.pause_timer -= 1
+            self.animate(moving=False)
+            return
+
         self.x += self.speed * self.direction
 
         if self.x <= self.left_limit:
             self.x = self.left_limit
             self.direction = 1
+            self.pause_timer = 8
 
         elif self.x >= self.right_limit:
             self.x = self.right_limit
             self.direction = -1
+            self.pause_timer = 8
 
-        self.animate()
+        self.animate(moving=self.speed != 0)
 
-    def animate(self):
+    def animate(self, moving=True):
+        new_animation = "walk" if moving else "idle"
+
+        if new_animation != self.current_animation:
+            self.current_animation = new_animation
+            self.current_frame = 0
+            self.animation_timer = 0
+
         self.animation_timer += 1
 
         if self.animation_timer >= self.animation_speed:
             self.animation_timer = 0
+            if self.current_animation == "walk":
+                frame_count = len(self.walk_frames)
+            else:
+                frame_count = len(self.idle_frames)
+
             self.current_frame = (
                 self.current_frame + 1
-            ) % len(self.walk_frames)
+            ) % frame_count
 
     def draw(self):
-        image_name = self.walk_frames[self.current_frame]
+        if self.current_animation == "idle":
+            image_name = self.idle_frames[self.current_frame]
+        else:
+            image_name = self.walk_frames[self.current_frame]
 
-        # Scale the enemy image to match the collision box.
-        enemy_image = transform.scale(
-            images.load(image_name),
-            (self.width, self.height),
-        )
-        screen.blit(enemy_image, (self.x, self.y))
+        screen.blit(getattr(images, image_name), (self.x, self.y))
 
     def reset(self):
         self.x = self.start_x
@@ -352,6 +405,8 @@ class Enemy:
         self.current_frame = 0
         self.animation_timer = 0
         self.direction = 1
+        self.pause_timer = 0
+        self.current_animation = "walk"
 
 
 class Coin:
@@ -375,12 +430,7 @@ class Coin:
 
     def draw(self):
         if not self.collected:
-            # Draw the coin image at 32x32.
-            coin_image = transform.scale(
-                images.coin,
-                (self.width, self.height),
-            )
-            screen.blit(coin_image, (self.x, self.y))
+            screen.blit(images.coin, (self.x, self.y))
 
     def reset(self):
         self.collected = False
@@ -401,12 +451,7 @@ class Goal:
         )
 
     def draw(self):
-        # Draw the flag smaller and match its collision box.
-        flag_image = transform.scale(
-            images.flag,
-            (self.width, self.height),
-        )
-        screen.blit(flag_image, (self.x, self.y))
+        screen.blit(images.flag, (self.x, self.y))
 
 
 player = Player(100, ground.top - 64)
@@ -673,22 +718,7 @@ def on_mouse_down(pos):
 def on_key_down(key):
     global game_state
 
-    if game_state == PLAYING:
-        if key == keys.W:
-            game_state = WIN
-            stop_all_audio()
-
-            if sound_enabled:
-                sounds.win.play()
-
-        elif key == keys.L:
-            game_state = LOSE
-            stop_all_audio()
-
-            if sound_enabled:
-                sounds.hit.play()
-
-    elif game_state in (WIN, LOSE):
+    if game_state in (WIN, LOSE):
         if key == keys.RETURN:
             stop_all_audio()
             reset_game()
