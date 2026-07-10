@@ -43,18 +43,27 @@ ENEMY_HITBOX_INSET_TOP = 14
 ENEMY_HITBOX_INSET_BOTTOM = 16
 
 
-def create_hitbox(x, y, width, height, inset_left, inset_top, inset_right, inset_bottom):
+def create_hitbox(
+    x,
+    y,
+    width,
+    height,
+    inset_left,
+    inset_top,
+    inset_right,
+    inset_bottom,
+):
     return Rect(
         (x + inset_left, y + inset_top),
         (
             width - inset_left - inset_right,
-            height - inset_top - inset_bottom
-        )
+            height - inset_top - inset_bottom,
+        ),
     )
 
 
 def stop_all_audio():
-    """Arka plan müziğini ve bütün efektleri durdurur."""
+    """Stop the background music and all sound effects."""
     music.stop()
     sounds.coin.stop()
     sounds.jump.stop()
@@ -63,10 +72,20 @@ def stop_all_audio():
 
 
 def start_background_music():
-    """Ses açıksa arka plan müziğini başlatır."""
+    """Start the background music when sound is enabled."""
     if sound_enabled:
         music.stop()
         music.play("background")
+
+
+def draw_menu_button(label, button_rect):
+    screen.draw.filled_rect(button_rect, BUTTON_COLOR)
+    screen.draw.text(
+        label,
+        center=button_rect.center,
+        fontsize=35,
+        color=TEXT_COLOR,
+    )
 
 
 
@@ -84,7 +103,7 @@ class Player:
         self.jump_power = -12
         self.is_on_ground = True
 
-        # Fat Berry karakter paketi
+        # Fat Berry character pack.
         self.idle_frames = [
             "idle3",
             "idle4",
@@ -154,13 +173,13 @@ class Player:
                 sounds.jump.stop()
                 sounds.jump.play()
 
-        # Hareketten önce oyuncunun hitbox alt kenarı
+        # Player hitbox bottom edge before movement.
         old_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
 
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
-        # Hareketten sonra oyuncunun hitbox alt kenarı
+        # Player hitbox bottom edge after movement.
         new_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
 
         player_hitbox = self.get_hitbox()
@@ -193,10 +212,10 @@ class Player:
         self.animate()
 
     def animate(self):
-        # Hangi animasyonun oynatılacağını belirle.
+        # Decide which animation should play.
         new_animation = "run" if self.is_running else "idle"
 
-        # Animasyon türü değiştiğinde ilk kareden başlat.
+        # Restart from the first frame when the animation changes.
         if new_animation != self.current_animation:
             self.current_animation = new_animation
             self.current_frame = 0
@@ -231,7 +250,7 @@ class Player:
 
         player_image = transform.scale(
             images.load(image_name),
-            (self.width, self.height)
+            (self.width, self.height),
         )
         screen.blit(player_image, (self.x, self.y))
 
@@ -267,7 +286,7 @@ class Enemy:
             "enemy_idle_1"
         ]
 
-        # Düşman mevcut iki walk karesi arasında sürekli geçer.
+        # The enemy loops between its two walk frames.
         self.walk_frames = [
             "enemy_walk_0",
             "enemy_walk_1"
@@ -320,10 +339,10 @@ class Enemy:
     def draw(self):
         image_name = self.walk_frames[self.current_frame]
 
-        # Düşman görselini çarpışma kutusuyla aynı boyuta getir.
+        # Scale the enemy image to match the collision box.
         enemy_image = transform.scale(
             images.load(image_name),
-            (self.width, self.height)
+            (self.width, self.height),
         )
         screen.blit(enemy_image, (self.x, self.y))
 
@@ -356,10 +375,10 @@ class Coin:
 
     def draw(self):
         if not self.collected:
-            # Coin görselini 32x32 boyutunda çiz.
+            # Draw the coin image at 32x32.
             coin_image = transform.scale(
                 images.coin,
-                (self.width, self.height)
+                (self.width, self.height),
             )
             screen.blit(coin_image, (self.x, self.y))
 
@@ -382,10 +401,10 @@ class Goal:
         )
 
     def draw(self):
-        # Bayrağı daha küçük çiz ve çarpışma kutusuyla eşleştir.
+        # Draw the flag smaller and match its collision box.
         flag_image = transform.scale(
             images.flag,
-            (self.width, self.height)
+            (self.width, self.height),
         )
         screen.blit(flag_image, (self.x, self.y))
 
@@ -466,22 +485,7 @@ def draw():
             color="white"
         )
 
-        screen.draw.filled_rect(
-            start_button,
-            BUTTON_COLOR
-        )
-
-        screen.draw.text(
-            "Start Game",
-            center=start_button.center,
-            fontsize=35,
-            color=TEXT_COLOR
-        )
-
-        screen.draw.filled_rect(
-            sound_button,
-            BUTTON_COLOR
-        )
+        draw_menu_button("Start Game", start_button)
 
         sound_text = (
             "Sound: ON"
@@ -489,24 +493,8 @@ def draw():
             else "Sound: OFF"
         )
 
-        screen.draw.text(
-            sound_text,
-            center=sound_button.center,
-            fontsize=35,
-            color=TEXT_COLOR
-        )
-
-        screen.draw.filled_rect(
-            exit_button,
-            BUTTON_COLOR
-        )
-
-        screen.draw.text(
-            "Exit",
-            center=exit_button.center,
-            fontsize=35,
-            color=TEXT_COLOR
-        )
+        draw_menu_button(sound_text, sound_button)
+        draw_menu_button("Exit", exit_button)
 
     elif game_state == PLAYING:
         screen.fill(PLAY_COLOR)
@@ -595,7 +583,7 @@ def update():
 
     player.update()
 
-    # Oyuncu ekranın altına düşerse oyun kaybedilir.
+    # The player loses if they fall below the screen.
     if player.y > HEIGHT:
         game_state = LOSE
         stop_all_audio()
@@ -611,7 +599,7 @@ def update():
     player_rect = player.get_rect()
     player_hitbox = player.get_hitbox()
 
-    # Coin toplama kontrolü
+    # Check coin collection.
     for coin in coins:
         if (
             not coin.collected
@@ -624,7 +612,7 @@ def update():
                 sounds.coin.stop()
                 sounds.coin.play()
 
-    # Düşman çarpışma kontrolü
+    # Check enemy collisions.
     for enemy in enemies:
         if player_hitbox.colliderect(enemy.get_hitbox()):
             game_state = LOSE
@@ -635,7 +623,7 @@ def update():
 
             return
 
-    # Bütün coinler toplandıktan sonra hedefe ulaşma kontrolü
+    # Check whether the goal was reached after collecting all coins.
     if (
         score == len(coins)
         and player_rect.colliderect(goal.get_rect())
@@ -674,12 +662,8 @@ def on_mouse_down(pos):
 
     elif sound_button.collidepoint(pos):
         sound_enabled = not sound_enabled
-
-        if sound_enabled:
-            # Menüde müzik başlamaz; oyun başlayınca çalar.
-            stop_all_audio()
-        else:
-            stop_all_audio()
+        # Menu music is only started when the game begins.
+        stop_all_audio()
 
     elif exit_button.collidepoint(pos):
         stop_all_audio()
