@@ -1,4 +1,4 @@
-from pygame import Rect
+from pygame import Rect, transform
 
 WIDTH = 800
 HEIGHT = 600
@@ -19,6 +19,7 @@ TEXT_COLOR = "white"
 
 game_state = MENU
 sound_enabled = True
+score = 0
 
 start_button = Rect((250, 180), (300, 60))
 sound_button = Rect((250, 270), (300, 60))
@@ -54,7 +55,10 @@ class Player:
         self.is_running = False
 
     def get_rect(self):
-        return Rect((self.x, self.y), (self.width, self.height))
+        return Rect(
+            (self.x, self.y),
+            (self.width, self.height)
+        )
 
     def update(self):
         self.is_running = False
@@ -71,23 +75,37 @@ class Player:
             self.velocity_y = self.jump_power
             self.is_on_ground = False
 
-        old_y = self.y
+        # Hareketten önce oyuncunun alt kenarı
+        old_bottom = self.y + self.height
 
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
+        # Hareketten sonra oyuncunun alt kenarı
+        new_bottom = self.y + self.height
+
         self.is_on_ground = False
-        player_rect = self.get_rect()
 
         for platform in platforms:
-            if player_rect.colliderect(platform):
-                old_bottom = old_y + self.height
+            player_left = self.x
+            player_right = self.x + self.width
 
-                if self.velocity_y >= 0 and old_bottom <= platform.top:
-                    self.y = platform.top - self.height
-                    self.velocity_y = 0
-                    self.is_on_ground = True
-                    player_rect = self.get_rect()
+            horizontal_collision = (
+                player_right > platform.left
+                and player_left < platform.right
+            )
+
+            vertical_collision = (
+                self.velocity_y >= 0
+                and old_bottom <= platform.top
+                and new_bottom >= platform.top
+            )
+
+            if horizontal_collision and vertical_collision:
+                self.y = platform.top - self.height
+                self.velocity_y = 0
+                self.is_on_ground = True
+                break
 
         self.x = max(0, min(self.x, WIDTH - self.width))
 
@@ -100,9 +118,13 @@ class Player:
             self.animation_timer = 0
 
             if self.is_running:
-                self.current_frame = (self.current_frame + 1) % len(self.run_frames)
+                self.current_frame = (
+                    self.current_frame + 1
+                ) % len(self.run_frames)
             else:
-                self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
+                self.current_frame = (
+                    self.current_frame + 1
+                ) % len(self.idle_frames)
 
     def draw(self):
         if self.is_running:
@@ -145,7 +167,10 @@ class Enemy:
         self.animation_timer = 0
 
     def get_rect(self):
-        return Rect((self.x, self.y), (self.width, self.height))
+        return Rect(
+            (self.x, self.y),
+            (self.width, self.height)
+        )
 
     def update(self):
         self.x += self.speed * self.direction
@@ -165,11 +190,19 @@ class Enemy:
 
         if self.animation_timer >= 12:
             self.animation_timer = 0
-            self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
+            self.current_frame = (
+                self.current_frame + 1
+            ) % len(self.walk_frames)
 
     def draw(self):
         image_name = self.walk_frames[self.current_frame]
-        screen.blit(image_name, (self.x, self.y))
+
+        # Düşman görselini çarpışma kutusuyla aynı boyuta getir.
+        enemy_image = transform.scale(
+            images.load(image_name),
+            (self.width, self.height)
+        )
+        screen.blit(enemy_image, (self.x, self.y))
 
     def reset(self):
         self.x = self.start_x
@@ -177,6 +210,61 @@ class Enemy:
         self.current_frame = 0
         self.animation_timer = 0
         self.direction = 1
+
+
+class Coin:
+    def __init__(self, x, y):
+        self.start_x = x
+        self.start_y = y
+
+        self.x = x
+        self.y = y
+
+        self.width = 32
+        self.height = 32
+
+        self.collected = False
+
+    def get_rect(self):
+        return Rect(
+            (self.x, self.y),
+            (self.width, self.height)
+        )
+
+    def draw(self):
+        if not self.collected:
+            # Coin görselini 32x32 boyutunda çiz.
+            coin_image = transform.scale(
+                images.coin,
+                (self.width, self.height)
+            )
+            screen.blit(coin_image, (self.x, self.y))
+
+    def reset(self):
+        self.collected = False
+
+
+class Goal:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+        self.width = 40
+        self.height = 60
+
+    def get_rect(self):
+        return Rect(
+            (self.x, self.y),
+            (self.width, self.height)
+        )
+
+    def draw(self):
+        # Bayrağı daha küçük çiz ve çarpışma kutusuyla eşleştir.
+        flag_image = transform.scale(
+            images.flag,
+            (self.width, self.height)
+        )
+        screen.blit(flag_image, (self.x, self.y))
 
 
 player = Player(100, ground.top - 90)
@@ -200,9 +288,46 @@ enemy_2 = Enemy(
 enemies = [enemy_1, enemy_2]
 
 
+coin_1 = Coin(
+    210,
+    platform_1.top - 45
+)
+
+coin_2 = Coin(
+    500,
+    platform_2.top - 45
+)
+
+coin_3 = Coin(
+    310,
+    platform_3.top - 45
+)
+
+coin_4 = Coin(
+    650,
+    ground.top - 45
+)
+
+coins = [
+    coin_1,
+    coin_2,
+    coin_3,
+    coin_4
+]
+
+
+goal = Goal(
+    745,
+    ground.top - 60
+)
+
+
 def draw_platforms():
     for platform in platforms:
-        screen.draw.filled_rect(platform, (80, 120, 60))
+        screen.draw.filled_rect(
+            platform,
+            (80, 120, 60)
+        )
 
 
 def draw():
@@ -218,7 +343,11 @@ def draw():
             color="white"
         )
 
-        screen.draw.filled_rect(start_button, BUTTON_COLOR)
+        screen.draw.filled_rect(
+            start_button,
+            BUTTON_COLOR
+        )
+
         screen.draw.text(
             "Start Game",
             center=start_button.center,
@@ -226,8 +355,16 @@ def draw():
             color=TEXT_COLOR
         )
 
-        screen.draw.filled_rect(sound_button, BUTTON_COLOR)
-        sound_text = "Sound: ON" if sound_enabled else "Sound: OFF"
+        screen.draw.filled_rect(
+            sound_button,
+            BUTTON_COLOR
+        )
+
+        sound_text = (
+            "Sound: ON"
+            if sound_enabled
+            else "Sound: OFF"
+        )
 
         screen.draw.text(
             sound_text,
@@ -236,7 +373,11 @@ def draw():
             color=TEXT_COLOR
         )
 
-        screen.draw.filled_rect(exit_button, BUTTON_COLOR)
+        screen.draw.filled_rect(
+            exit_button,
+            BUTTON_COLOR
+        )
+
         screen.draw.text(
             "Exit",
             center=exit_button.center,
@@ -248,44 +389,139 @@ def draw():
         screen.fill(PLAY_COLOR)
 
         screen.draw.text(
-            "GAME SCREEN",
-            center=(WIDTH // 2, 80),
-            fontsize=50,
+            f"Score: {score}/{len(coins)}",
+            topleft=(20, 20),
+            fontsize=35,
             color="black"
         )
 
         draw_platforms()
+
+        goal.draw()
+
+        for coin in coins:
+            coin.draw()
 
         for enemy in enemies:
             enemy.draw()
 
         player.draw()
 
+        if score < len(coins):
+            screen.draw.text(
+                "Collect all coins!",
+                center=(WIDTH // 2, 70),
+                fontsize=30,
+                color="black"
+            )
+        else:
+            screen.draw.text(
+                "Go to the flag!",
+                center=(WIDTH // 2, 70),
+                fontsize=30,
+                color="black"
+            )
+
     elif game_state == WIN:
         screen.fill(WIN_COLOR)
+
         screen.draw.text(
             "YOU WIN!",
-            center=(WIDTH // 2, HEIGHT // 2),
+            center=(WIDTH // 2, HEIGHT // 2 - 40),
             fontsize=60,
+            color="white"
+        )
+
+        screen.draw.text(
+            f"Score: {score}",
+            center=(WIDTH // 2, HEIGHT // 2 + 30),
+            fontsize=40,
+            color="white"
+        )
+
+        screen.draw.text(
+            "Press Enter to return menu",
+            center=(WIDTH // 2, HEIGHT // 2 + 100),
+            fontsize=25,
             color="white"
         )
 
     elif game_state == LOSE:
         screen.fill(LOSE_COLOR)
+
         screen.draw.text(
             "GAME OVER",
-            center=(WIDTH // 2, HEIGHT // 2),
+            center=(WIDTH // 2, HEIGHT // 2 - 30),
             fontsize=60,
+            color="white"
+        )
+
+        screen.draw.text(
+            "Press Enter to return menu",
+            center=(WIDTH // 2, HEIGHT // 2 + 50),
+            fontsize=25,
             color="white"
         )
 
 
 def update():
-    if game_state == PLAYING:
-        player.update()
+    global game_state, score
 
-        for enemy in enemies:
-            enemy.update()
+    if game_state != PLAYING:
+        return
+
+    player.update()
+
+    # Oyuncu ekranın altına düşerse oyun kaybedilir.
+    if player.y > HEIGHT:
+        game_state = LOSE
+        return
+
+    for enemy in enemies:
+        enemy.update()
+
+    player_rect = player.get_rect()
+
+    # Coin toplama kontrolü
+    for coin in coins:
+        if (
+            not coin.collected
+            and player_rect.colliderect(coin.get_rect())
+        ):
+            coin.collected = True
+            score += 1
+
+            if sound_enabled:
+                sounds.coin.play()
+
+    # Düşman çarpışma kontrolü
+    for enemy in enemies:
+        if player_rect.colliderect(enemy.get_rect()):
+            game_state = LOSE
+            return
+
+    # Bütün coinler toplandıktan sonra hedefe ulaşma kontrolü
+    if (
+        score == len(coins)
+        and player_rect.colliderect(goal.get_rect())
+    ):
+        game_state = WIN
+
+        if sound_enabled:
+            sounds.win.play()
+
+
+def reset_game():
+    global score
+
+    score = 0
+    player.reset()
+
+    for enemy in enemies:
+        enemy.reset()
+
+    for coin in coins:
+        coin.reset()
 
 
 def on_mouse_down(pos):
@@ -295,11 +531,8 @@ def on_mouse_down(pos):
         return
 
     if start_button.collidepoint(pos):
+        reset_game()
         game_state = PLAYING
-        player.reset()
-
-        for enemy in enemies:
-            enemy.reset()
 
     elif sound_button.collidepoint(pos):
         sound_enabled = not sound_enabled
@@ -314,12 +547,11 @@ def on_key_down(key):
     if game_state == PLAYING:
         if key == keys.W:
             game_state = WIN
+
         elif key == keys.L:
             game_state = LOSE
 
-    elif game_state in (WIN, LOSE) and key == keys.ESCAPE:
-        game_state = MENU
-        player.reset()
-
-        for enemy in enemies:
-            enemy.reset()
+    elif game_state in (WIN, LOSE):
+        if key == keys.RETURN:
+            reset_game()
+            game_state = MENU
