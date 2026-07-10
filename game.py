@@ -33,6 +33,23 @@ platform_3 = Rect((250, 240), (160, 25))
 platforms = [ground, platform_1, platform_2, platform_3]
 
 
+def stop_all_audio():
+    """Arka plan müziğini ve bütün efektleri durdurur."""
+    music.stop()
+    sounds.coin.stop()
+    sounds.jump.stop()
+    sounds.hit.stop()
+    sounds.win.stop()
+
+
+def start_background_music():
+    """Ses açıksa arka plan müziğini başlatır."""
+    if sound_enabled:
+        music.stop()
+        music.play("background")
+
+
+
 class Player:
     def __init__(self, x, y):
         self.x = x
@@ -74,6 +91,10 @@ class Player:
         if (keyboard.space or keyboard.up) and self.is_on_ground:
             self.velocity_y = self.jump_power
             self.is_on_ground = False
+
+            if sound_enabled:
+                sounds.jump.stop()
+                sounds.jump.play()
 
         # Hareketten önce oyuncunun alt kenarı
         old_bottom = self.y + self.height
@@ -475,6 +496,11 @@ def update():
     # Oyuncu ekranın altına düşerse oyun kaybedilir.
     if player.y > HEIGHT:
         game_state = LOSE
+        stop_all_audio()
+
+        if sound_enabled:
+            sounds.hit.play()
+
         return
 
     for enemy in enemies:
@@ -492,12 +518,18 @@ def update():
             score += 1
 
             if sound_enabled:
+                sounds.coin.stop()
                 sounds.coin.play()
 
     # Düşman çarpışma kontrolü
     for enemy in enemies:
         if player_rect.colliderect(enemy.get_rect()):
             game_state = LOSE
+            stop_all_audio()
+
+            if sound_enabled:
+                sounds.hit.play()
+
             return
 
     # Bütün coinler toplandıktan sonra hedefe ulaşma kontrolü
@@ -506,6 +538,7 @@ def update():
         and player_rect.colliderect(goal.get_rect())
     ):
         game_state = WIN
+        stop_all_audio()
 
         if sound_enabled:
             sounds.win.play()
@@ -531,13 +564,22 @@ def on_mouse_down(pos):
         return
 
     if start_button.collidepoint(pos):
+        stop_all_audio()
         reset_game()
         game_state = PLAYING
+        start_background_music()
 
     elif sound_button.collidepoint(pos):
         sound_enabled = not sound_enabled
 
+        if sound_enabled:
+            # Menüde müzik başlamaz; oyun başlayınca çalar.
+            stop_all_audio()
+        else:
+            stop_all_audio()
+
     elif exit_button.collidepoint(pos):
+        stop_all_audio()
         exit()
 
 
@@ -547,11 +589,21 @@ def on_key_down(key):
     if game_state == PLAYING:
         if key == keys.W:
             game_state = WIN
+            stop_all_audio()
+
+            if sound_enabled:
+                sounds.win.play()
 
         elif key == keys.L:
             game_state = LOSE
+            stop_all_audio()
+
+            if sound_enabled:
+                sounds.hit.play()
 
     elif game_state in (WIN, LOSE):
         if key == keys.RETURN:
+            stop_all_audio()
             reset_game()
             game_state = MENU
+
