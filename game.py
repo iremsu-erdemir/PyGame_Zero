@@ -1,5 +1,6 @@
 from pygame import Rect
 
+# --- Window and game state ---
 WIDTH = 800
 HEIGHT = 600
 TITLE = "Forest Runner"
@@ -16,6 +17,52 @@ LOSE_COLOR = (180, 50, 50)
 
 BUTTON_COLOR = (70, 70, 180)
 TEXT_COLOR = "white"
+
+# --- Shared tuning and animation frames ---
+PLAYER_START_X = 100
+PLAYER_WIDTH = 159
+PLAYER_HEIGHT = 64
+PLAYER_SPEED = 4
+PLAYER_GRAVITY = 0.5
+PLAYER_JUMP_POWER = -12
+PLAYER_ANIMATION_SPEED = 10
+
+PLAYER_IDLE_FRAMES = (
+    "idle3",
+    "idle4",
+    "idle5",
+    "idle6",
+    "idle7",
+    "idle8",
+)
+
+PLAYER_RUN_FRAMES = (
+    "run1",
+    "run2",
+    "run3",
+    "run4",
+    "run5",
+    "run6",
+    "run7",
+    "run8",
+)
+
+PLAYER_JUMP_FRAMES = (
+    "jump1",
+    "jump2",
+    "jump3",
+)
+
+ENEMY_ANIMATION_SPEED = 10
+ENEMY_IDLE_PAUSE = 45
+ENEMY_IDLE_FRAMES = (
+    "enemy_idle_0",
+    "enemy_idle_1",
+)
+ENEMY_WALK_FRAMES = (
+    "enemy_walk_0",
+    "enemy_walk_1",
+)
 
 game_state = MENU
 sound_enabled = True
@@ -62,6 +109,7 @@ def create_hitbox(
     )
 
 
+# --- Audio helpers ---
 def stop_all_audio():
     """Stop the background music and all sound effects."""
     music.stop()
@@ -78,6 +126,7 @@ def start_background_music():
         music.play("background")
 
 
+# --- UI helpers ---
 def draw_menu_button(label, button_rect):
     screen.draw.filled_rect(button_rect, BUTTON_COLOR)
     screen.draw.text(
@@ -88,52 +137,13 @@ def draw_menu_button(label, button_rect):
     )
 
 
-
 class Player:
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
+        self.width = PLAYER_WIDTH
+        self.height = PLAYER_HEIGHT
+        self.animation_speed = PLAYER_ANIMATION_SPEED
 
-        self.width = 159
-        self.height = 64
-
-        self.speed = 4
-        self.velocity_y = 0
-        self.gravity = 0.5
-        self.jump_power = -12
-        self.is_on_ground = True
-
-        self.idle_frames = [
-            "idle3",
-            "idle4",
-            "idle5",
-            "idle6",
-            "idle7",
-            "idle8"
-        ]
-
-        self.run_frames = [
-            "run1",
-            "run2",
-            "run3",
-            "run4",
-            "run5",
-            "run6",
-            "run7",
-            "run8"
-        ]
-
-        self.jump_frames = [
-            "jump1",
-            "jump2",
-            "jump3"
-        ]
-
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.animation_speed = 10
-        self.current_animation = "idle"
-        self.is_running = False
+        self.reset(x, y)
 
     def get_rect(self):
         return Rect(
@@ -152,6 +162,24 @@ class Player:
             PLAYER_HITBOX_INSET_RIGHT,
             PLAYER_HITBOX_INSET_BOTTOM
         )
+
+    def reset(self, x=None, y=None):
+        self.x = PLAYER_START_X if x is None else x
+        self.y = ground.top - self.height if y is None else y
+        self.speed = PLAYER_SPEED
+        self.velocity_y = 0
+        self.gravity = PLAYER_GRAVITY
+        self.jump_power = PLAYER_JUMP_POWER
+        self.is_on_ground = True
+
+        self.idle_frames = PLAYER_IDLE_FRAMES
+        self.run_frames = PLAYER_RUN_FRAMES
+        self.jump_frames = PLAYER_JUMP_FRAMES
+
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.current_animation = "idle"
+        self.is_running = False
 
     def update(self):
         self.is_running = False
@@ -204,6 +232,8 @@ class Player:
                 self.is_on_ground = True
                 break
 
+        self.x = max(0, min(self.x, WIDTH - self.width))
+
         self.animate()
 
     def animate(self):
@@ -245,59 +275,6 @@ class Player:
 
         screen.blit(getattr(images, image_name), (self.x, self.y))
 
-    def reset(self):
-        self.x = 100
-        self.y = ground.top - self.height
-        self.velocity_y = 0
-        self.is_on_ground = True
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.current_animation = "idle"
-        self.is_running = False
-
-    def reset(self):
-        self.x = 100
-        self.y = ground.top - self.height
-        self.width = 159
-        self.height = 64
-        self.speed = 4
-        self.velocity_y = 0
-        self.gravity = 0.5
-        self.jump_power = -12
-        self.is_on_ground = True
-
-        # Fat Berry character pack.
-        self.idle_frames = [
-            "idle3",
-            "idle4",
-            "idle5",
-            "idle6",
-            "idle7",
-            "idle8"
-        ]
-
-        self.run_frames = [
-            "run1",
-            "run2",
-            "run3",
-            "run4",
-            "run5",
-            "run6",
-            "run7",
-            "run8"
-        ]
-
-        self.jump_frames = [
-            "jump1",
-            "jump2",
-            "jump3"
-        ]
-
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.current_animation = "idle"
-        self.is_running = False
-
 
 class Enemy:
     def __init__(self, x, y, left_limit, right_limit, speed):
@@ -313,24 +290,11 @@ class Enemy:
         self.left_limit = left_limit
         self.right_limit = right_limit
         self.speed = speed
-        self.direction = 1
-        self.pause_timer = 0
+        self.animation_speed = ENEMY_ANIMATION_SPEED
+        self.idle_frames = ENEMY_IDLE_FRAMES
+        self.walk_frames = ENEMY_WALK_FRAMES
 
-        self.idle_frames = [
-            "enemy_idle_0",
-            "enemy_idle_1"
-        ]
-
-        # The enemy loops between its two walk frames.
-        self.walk_frames = [
-            "enemy_walk_0",
-            "enemy_walk_1"
-        ]
-
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.animation_speed = 10
-        self.current_animation = "walk"
+        self.reset()
 
     def get_rect(self):
         return Rect(
@@ -350,6 +314,15 @@ class Enemy:
             ENEMY_HITBOX_INSET_BOTTOM
         )
 
+    def reset(self):
+        self.x = self.start_x
+        self.y = self.start_y
+        self.direction = 1
+        self.pause_timer = 0
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.current_animation = "walk"
+
     def update(self):
         if self.pause_timer > 0:
             self.pause_timer -= 1
@@ -361,12 +334,12 @@ class Enemy:
         if self.x <= self.left_limit:
             self.x = self.left_limit
             self.direction = 1
-            self.pause_timer = 8
+            self.pause_timer = ENEMY_IDLE_PAUSE
 
         elif self.x >= self.right_limit:
             self.x = self.right_limit
             self.direction = -1
-            self.pause_timer = 8
+            self.pause_timer = ENEMY_IDLE_PAUSE
 
         self.animate(moving=self.speed != 0)
 
@@ -398,15 +371,6 @@ class Enemy:
             image_name = self.walk_frames[self.current_frame]
 
         screen.blit(getattr(images, image_name), (self.x, self.y))
-
-    def reset(self):
-        self.x = self.start_x
-        self.y = self.start_y
-        self.current_frame = 0
-        self.animation_timer = 0
-        self.direction = 1
-        self.pause_timer = 0
-        self.current_animation = "walk"
 
 
 class Coin:
@@ -454,7 +418,7 @@ class Goal:
         screen.blit(images.flag, (self.x, self.y))
 
 
-player = Player(100, ground.top - 64)
+player = Player(PLAYER_START_X, ground.top - PLAYER_HEIGHT)
 
 enemy_1 = Enemy(
     170,
