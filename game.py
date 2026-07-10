@@ -32,6 +32,26 @@ platform_3 = Rect((250, 240), (160, 25))
 
 platforms = [ground, platform_1, platform_2, platform_3]
 
+PLAYER_HITBOX_INSET_LEFT = 30
+PLAYER_HITBOX_INSET_RIGHT = 30
+PLAYER_HITBOX_INSET_TOP = 8
+PLAYER_HITBOX_INSET_BOTTOM = 8
+
+ENEMY_HITBOX_INSET_LEFT = 21
+ENEMY_HITBOX_INSET_RIGHT = 21
+ENEMY_HITBOX_INSET_TOP = 14
+ENEMY_HITBOX_INSET_BOTTOM = 16
+
+
+def create_hitbox(x, y, width, height, inset_left, inset_top, inset_right, inset_bottom):
+    return Rect(
+        (x + inset_left, y + inset_top),
+        (
+            width - inset_left - inset_right,
+            height - inset_top - inset_bottom
+        )
+    )
+
 
 def stop_all_audio():
     """Arka plan müziğini ve bütün efektleri durdurur."""
@@ -55,8 +75,8 @@ class Player:
         self.x = x
         self.y = y
 
-        self.width = 60
-        self.height = 90
+        self.width = 159
+        self.height = 64
 
         self.speed = 4
         self.velocity_y = 0
@@ -64,17 +84,55 @@ class Player:
         self.jump_power = -12
         self.is_on_ground = True
 
-        self.idle_frames = ["player_idle_0", "player_idle_1"]
-        self.run_frames = ["player_run_0", "player_run_1"]
+        # Fat Berry karakter paketi
+        self.idle_frames = [
+            "idle3",
+            "idle4",
+            "idle5",
+            "idle6",
+            "idle7",
+            "idle8"
+        ]
+
+        self.run_frames = [
+            "run1",
+            "run2",
+            "run3",
+            "run4",
+            "run5",
+            "run6",
+            "run7",
+            "run8"
+        ]
+
+        self.jump_frames = [
+            "jump1",
+            "jump2",
+            "jump3"
+        ]
 
         self.current_frame = 0
         self.animation_timer = 0
+        self.animation_speed = 10
+        self.current_animation = "idle"
         self.is_running = False
 
     def get_rect(self):
         return Rect(
             (self.x, self.y),
             (self.width, self.height)
+        )
+
+    def get_hitbox(self):
+        return create_hitbox(
+            self.x,
+            self.y,
+            self.width,
+            self.height,
+            PLAYER_HITBOX_INSET_LEFT,
+            PLAYER_HITBOX_INSET_TOP,
+            PLAYER_HITBOX_INSET_RIGHT,
+            PLAYER_HITBOX_INSET_BOTTOM
         )
 
     def update(self):
@@ -96,20 +154,22 @@ class Player:
                 sounds.jump.stop()
                 sounds.jump.play()
 
-        # Hareketten önce oyuncunun alt kenarı
-        old_bottom = self.y + self.height
+        # Hareketten önce oyuncunun hitbox alt kenarı
+        old_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
 
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
-        # Hareketten sonra oyuncunun alt kenarı
-        new_bottom = self.y + self.height
+        # Hareketten sonra oyuncunun hitbox alt kenarı
+        new_bottom = self.y + self.height - PLAYER_HITBOX_INSET_BOTTOM
+
+        player_hitbox = self.get_hitbox()
 
         self.is_on_ground = False
 
         for platform in platforms:
-            player_left = self.x
-            player_right = self.x + self.width
+            player_left = player_hitbox.left
+            player_right = player_hitbox.right
 
             horizontal_collision = (
                 player_right > platform.left
@@ -123,7 +183,7 @@ class Player:
             )
 
             if horizontal_collision and vertical_collision:
-                self.y = platform.top - self.height
+                self.y = platform.top - self.height + PLAYER_HITBOX_INSET_BOTTOM
                 self.velocity_y = 0
                 self.is_on_ground = True
                 break
@@ -133,27 +193,47 @@ class Player:
         self.animate()
 
     def animate(self):
-        self.animation_timer += 1
+        # Hangi animasyonun oynatılacağını belirle.
+        new_animation = "run" if self.is_running else "idle"
 
-        if self.animation_timer >= 10:
+        # Animasyon türü değiştiğinde ilk kareden başlat.
+        if new_animation != self.current_animation:
+            self.current_animation = new_animation
+            self.current_frame = 0
             self.animation_timer = 0
 
-            if self.is_running:
-                self.current_frame = (
-                    self.current_frame + 1
-                ) % len(self.run_frames)
+        self.animation_timer += 1
+
+        if self.animation_timer >= self.animation_speed:
+            self.animation_timer = 0
+
+            if self.current_animation == "run":
+                frame_count = len(self.run_frames)
             else:
-                self.current_frame = (
-                    self.current_frame + 1
-                ) % len(self.idle_frames)
+                frame_count = len(self.idle_frames)
+
+            self.current_frame = (
+                self.current_frame + 1
+            ) % frame_count
 
     def draw(self):
-        if self.is_running:
+        if not self.is_on_ground:
+            if self.velocity_y < -4:
+                image_name = self.jump_frames[0]
+            elif self.velocity_y < 4:
+                image_name = self.jump_frames[1]
+            else:
+                image_name = self.jump_frames[2]
+        elif self.current_animation == "run":
             image_name = self.run_frames[self.current_frame]
         else:
             image_name = self.idle_frames[self.current_frame]
 
-        screen.blit(image_name, (self.x, self.y))
+        player_image = transform.scale(
+            images.load(image_name),
+            (self.width, self.height)
+        )
+        screen.blit(player_image, (self.x, self.y))
 
     def reset(self):
         self.x = 100
@@ -162,6 +242,7 @@ class Player:
         self.is_on_ground = True
         self.current_frame = 0
         self.animation_timer = 0
+        self.current_animation = "idle"
         self.is_running = False
 
 
@@ -181,16 +262,37 @@ class Enemy:
         self.speed = speed
         self.direction = 1
 
-        self.idle_frames = ["enemy_idle_0", "enemy_idle_1"]
-        self.walk_frames = ["enemy_walk_0", "enemy_walk_1"]
+        self.idle_frames = [
+            "enemy_idle_0",
+            "enemy_idle_1"
+        ]
+
+        # Düşman mevcut iki walk karesi arasında sürekli geçer.
+        self.walk_frames = [
+            "enemy_walk_0",
+            "enemy_walk_1"
+        ]
 
         self.current_frame = 0
         self.animation_timer = 0
+        self.animation_speed = 10
 
     def get_rect(self):
         return Rect(
             (self.x, self.y),
             (self.width, self.height)
+        )
+
+    def get_hitbox(self):
+        return create_hitbox(
+            self.x,
+            self.y,
+            self.width,
+            self.height,
+            ENEMY_HITBOX_INSET_LEFT,
+            ENEMY_HITBOX_INSET_TOP,
+            ENEMY_HITBOX_INSET_RIGHT,
+            ENEMY_HITBOX_INSET_BOTTOM
         )
 
     def update(self):
@@ -209,7 +311,7 @@ class Enemy:
     def animate(self):
         self.animation_timer += 1
 
-        if self.animation_timer >= 12:
+        if self.animation_timer >= self.animation_speed:
             self.animation_timer = 0
             self.current_frame = (
                 self.current_frame + 1
@@ -288,7 +390,7 @@ class Goal:
         screen.blit(flag_image, (self.x, self.y))
 
 
-player = Player(100, ground.top - 90)
+player = Player(100, ground.top - 64)
 
 enemy_1 = Enemy(
     170,
@@ -507,6 +609,7 @@ def update():
         enemy.update()
 
     player_rect = player.get_rect()
+    player_hitbox = player.get_hitbox()
 
     # Coin toplama kontrolü
     for coin in coins:
@@ -523,7 +626,7 @@ def update():
 
     # Düşman çarpışma kontrolü
     for enemy in enemies:
-        if player_rect.colliderect(enemy.get_rect()):
+        if player_hitbox.colliderect(enemy.get_hitbox()):
             game_state = LOSE
             stop_all_audio()
 
