@@ -46,15 +46,8 @@ class Player:
         self.jump_power = -12
         self.is_on_ground = True
 
-        self.idle_frames = [
-            "player_idle_0",
-            "player_idle_1"
-        ]
-
-        self.run_frames = [
-            "player_run_0",
-            "player_run_1"
-        ]
+        self.idle_frames = ["player_idle_0", "player_idle_1"]
+        self.run_frames = ["player_run_0", "player_run_1"]
 
         self.current_frame = 0
         self.animation_timer = 0
@@ -129,7 +122,82 @@ class Player:
         self.is_running = False
 
 
+class Enemy:
+    def __init__(self, x, y, left_limit, right_limit, speed):
+        self.start_x = x
+        self.start_y = y
+
+        self.x = x
+        self.y = y
+
+        self.width = 64
+        self.height = 64
+
+        self.left_limit = left_limit
+        self.right_limit = right_limit
+        self.speed = speed
+        self.direction = 1
+
+        self.idle_frames = ["enemy_idle_0", "enemy_idle_1"]
+        self.walk_frames = ["enemy_walk_0", "enemy_walk_1"]
+
+        self.current_frame = 0
+        self.animation_timer = 0
+
+    def get_rect(self):
+        return Rect((self.x, self.y), (self.width, self.height))
+
+    def update(self):
+        self.x += self.speed * self.direction
+
+        if self.x <= self.left_limit:
+            self.x = self.left_limit
+            self.direction = 1
+
+        elif self.x >= self.right_limit:
+            self.x = self.right_limit
+            self.direction = -1
+
+        self.animate()
+
+    def animate(self):
+        self.animation_timer += 1
+
+        if self.animation_timer >= 12:
+            self.animation_timer = 0
+            self.current_frame = (self.current_frame + 1) % len(self.walk_frames)
+
+    def draw(self):
+        image_name = self.walk_frames[self.current_frame]
+        screen.blit(image_name, (self.x, self.y))
+
+    def reset(self):
+        self.x = self.start_x
+        self.y = self.start_y
+        self.current_frame = 0
+        self.animation_timer = 0
+        self.direction = 1
+
+
 player = Player(100, ground.top - 90)
+
+enemy_1 = Enemy(
+    170,
+    platform_1.top - 64,
+    platform_1.left,
+    platform_1.right - 64,
+    2
+)
+
+enemy_2 = Enemy(
+    450,
+    platform_2.top - 64,
+    platform_2.left,
+    platform_2.right - 64,
+    2
+)
+
+enemies = [enemy_1, enemy_2]
 
 
 def draw_platforms():
@@ -187,6 +255,10 @@ def draw():
         )
 
         draw_platforms()
+
+        for enemy in enemies:
+            enemy.draw()
+
         player.draw()
 
     elif game_state == WIN:
@@ -212,6 +284,9 @@ def update():
     if game_state == PLAYING:
         player.update()
 
+        for enemy in enemies:
+            enemy.update()
+
 
 def on_mouse_down(pos):
     global game_state, sound_enabled
@@ -222,6 +297,9 @@ def on_mouse_down(pos):
     if start_button.collidepoint(pos):
         game_state = PLAYING
         player.reset()
+
+        for enemy in enemies:
+            enemy.reset()
 
     elif sound_button.collidepoint(pos):
         sound_enabled = not sound_enabled
@@ -242,3 +320,6 @@ def on_key_down(key):
     elif game_state in (WIN, LOSE) and key == keys.ESCAPE:
         game_state = MENU
         player.reset()
+
+        for enemy in enemies:
+            enemy.reset()
